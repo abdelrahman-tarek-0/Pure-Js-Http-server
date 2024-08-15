@@ -1,3 +1,4 @@
+const { gzipSync } = require('zlib')
 const { parseUri, parseRequest } = require('./parsers')
 
 const CRLF = '\r\n'
@@ -20,8 +21,8 @@ const createResponse = (socket) => {
    return {
       OK: () => send(socket, 'HTTP/1.1 200 OK' + CRLF + CRLF),
       E404: () => send(socket, 'HTTP/1.1 404 Not Found' + CRLF + CRLF),
-      send: (data = '', type, status, compress = false) => {
-         const body = `${data?.toString?.() || data}`
+      send: async (data = '', type, status, compress = false) => {
+         let body = `${data?.toString?.() || data}`
          const headers = [
             `HTTP/1.1 ${
                status
@@ -33,13 +34,18 @@ const createResponse = (socket) => {
                   : '200 OK'
             }`,
             `Content-Type: ${type || 'text/plain'}`,
-            `Content-Length: ${body.length}`,
          ]
 
-         if(compress) headers.push('Content-Encoding: gzip')
-         const payload = headers.join(CRLF) + CRLF + CRLF + body
+         if (compress) {
+            body = gzipSync(data)
+            headers.push('Content-Encoding: gzip')
+         }
 
-         return send(socket, payload)
+         headers.push(`Content-Length: ${body.length}`)
+         const payload = headers.join(CRLF) + CRLF + CRLF 
+
+         await send(socket, payload) 
+         return send(socket, body)
       },
    }
 }
