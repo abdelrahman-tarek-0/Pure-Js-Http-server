@@ -21,6 +21,14 @@ server.on('GET', '/user-agent', async (req, res) => {
    await res.send(req?.headers?.['User-Agent'])
 })
 
+server.on('GET', '/json', async (req, res) => {
+   await res.setType('application/json').send(JSON.stringify({ foo: "bar" }))
+})
+
+server.on('GET', '/html', async (req, res) => {
+   await res.setType('text/html').send('<h1>hello world</h1>')
+})
+
 server.on('GET', '/files/{fileName}', async (req, res) => {
    const fileLocation = path.join(uploadDirectory, req?.params?.fileName || '.')
 
