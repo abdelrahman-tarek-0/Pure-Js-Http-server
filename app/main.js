@@ -1,7 +1,21 @@
 const net = require('net')
+const fs = require('fs/promises')
+const path = require('path')
+const parsArgv = require('./utils')
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 console.log('Logs from your program will appear here!')
+
+const uploadDirectory = path.resolve(parsArgv('--directory') ?? '.')
+
+const checkFileExist = async (file) => {
+   try {
+      await fs.access(file)
+      return true
+   } catch (error) {
+      return false
+   }
+}
 
 const CRLF = '\r\n'
 
@@ -11,11 +25,11 @@ const httpVersions = ['HTTP/1.1', 'HTTP/2']
 const response = {
    OK: () => 'HTTP/1.1 200 OK' + CRLF + CRLF,
    E404: () => 'HTTP/1.1 404 Not Found' + CRLF + CRLF,
-   send: (data = '') => {
+   send: (data = '', type) => {
       const body = `${data?.toString?.() || data}`
       const headers = [
          'HTTP/1.1 200 OK',
-         'Content-Type: text/plain',
+         `Content-Type: ${type ?? 'text/plain'}`,
          `Content-Length: ${body.length}`,
       ]
 
@@ -55,7 +69,6 @@ const parseRequestHeaders = (headers = '') => {
    const httpVersion = requestLineParts?.[2]
    if (!httpVersion || !httpVersions.includes(httpVersion))
       throw new Error('Unsupported http version: ' + httpVersion)
-
 
    const parsedHeaders = {
       method,
@@ -98,6 +111,21 @@ const server = net.createServer((socket) => {
          await send(socket, response.send(args?.join?.()))
       } else if (headers.requestUri.startsWith('/user-agent')) {
          await send(socket, response.send(headers['User-Agent']))
+      } else if (headers.requestUri.startsWith('/files')) {
+         const [_, __, file] = headers.requestUri.split('/') // get echo data
+         const fileLocation = path.join(uploadDirectory, file)
+
+         if (await checkFileExist(fileLocation)) {
+            await send(
+               socket,
+               response.send(
+                  await fs.readFile(fileLocation, 'utf8'),
+                  'application/octet-stream'
+               )
+            )
+         } else {
+            await send(socket, response.E404())
+         }
       } else {
          await send(socket, response.E404())
       }
@@ -107,7 +135,7 @@ const server = net.createServer((socket) => {
       socket.end()
    })
 
-   socket.on('error', (e)=>{
+   socket.on('error', (e) => {
       console.log(e.message)
    })
 })
