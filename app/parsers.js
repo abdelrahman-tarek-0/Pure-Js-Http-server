@@ -74,3 +74,10 @@ exports.parseArgv = (flag) => {
       }
    }
 }
+
+
+exports.parseDynamicField = (str = '') => {
+   if (str.startsWith('{') && str.endsWith('}')) {
+      return str.slice(1).substring(0, str.length - 2) || undefined
+   }
+}

@@ -3,7 +3,6 @@ const fs = require('fs/promises')
 const path = require('path')
 const { checkFileExist } = require('./utils')
 const { parseArgv } = require('./parsers')
-
 const { registerListener } = require('./listener')
 
 const uploadDirectory = path.resolve(parseArgv('--directory') ?? '.')
@@ -18,7 +17,7 @@ const server = net.createServer((socket) => {
       })
 
       listen('GET', '/echo/{data}', async (req, res) => {
-         await res.send(req?.params?.data, '', '', req?.headers?.['Accept-Encoding']?.split(',')?.map(h=> h?.trim()).includes('gzip'))
+         await res.send(req?.params?.data)
       })
 
       listen('GET', '/user-agent', async (req, res) => {
@@ -32,22 +31,24 @@ const server = net.createServer((socket) => {
          )
 
          if (await checkFileExist(fileLocation))
-            return await res.send(
-               await fs.readFile(fileLocation, 'utf8'),
-               'application/octet-stream'
-            )
+            return await res
+               .setType('application/octet-stream')
+               .send(await fs.readFile(fileLocation, 'utf8'))
 
-         await res.send('', '', 404)
+         await res.status(404).send()
       })
 
       listen('POST', '/files/{fileName}', async (req, res) => {
          // console.log(req.params.fileName, req.body)
-         await fs.writeFile(path.join(uploadDirectory, req?.params?.fileName || '.'), req.body)
-         await res.send('', '', 201)
+         await fs.writeFile(
+            path.join(uploadDirectory, req?.params?.fileName || '.'),
+            req.body
+         )
+         await res.status(201).send()
       })
 
       listen('GET', '/*', async (req, res) => {
-         await res.send('', '', 404)
+         await res.status(404).send()
       })
    })
 

@@ -1,4 +1,5 @@
 const fs = require('fs/promises')
+const { gzip } = require('zlib')
 
 exports.checkFileExist = async (file) => {
    try {
@@ -8,3 +9,12 @@ exports.checkFileExist = async (file) => {
       return false
    }
 }
+
+
+exports.compress = (data) =>
+   new Promise((resolve, reject) => {
+      gzip(data, (err, buf) => {
+         if (err) reject(err)
+         resolve(buf)
+      })
+   })

@@ -1,13 +1,6 @@
-const { gzipSync } = require('zlib')
-const { parseUri, parseRequest } = require('./parsers')
-
+const { parseUri, parseRequest, parseDynamicField } = require('./parsers')
+const { compress } = require('./utils')
 const CRLF = '\r\n'
-
-const parseIfDynamic = (str = '') => {
-   if (str.startsWith('{') && str.endsWith('}')) {
-      return str.slice(1).substring(0, str.length - 2) || undefined
-   }
-}
 
 const send = (socket, data) =>
    new Promise((resolve) => {
@@ -17,35 +10,49 @@ const send = (socket, data) =>
       })
    })
 
-const createResponse = (socket) => {
-   return {
-      OK: () => send(socket, 'HTTP/1.1 200 OK' + CRLF + CRLF),
-      E404: () => send(socket, 'HTTP/1.1 404 Not Found' + CRLF + CRLF),
-      send: async (data = '', type, status, compress = false) => {
-         let body = `${data?.toString?.() || data}`
-         const headers = [
-            `HTTP/1.1 ${
-               status
-                  ? status === 201
-                     ? '201 Created'
-                     : status === 404
-                     ? `404 Not Found`
-                     : `${status} `
-                  : '200 OK'
-            }`,
-            `Content-Type: ${type || 'text/plain'}`,
-         ]
+const responseStatusMapper = {
+   200: '200 OK',
+   201: '201 Created',
+   404: '404 Not Found',
+}
 
-         if (compress) {
-            body = gzipSync(data)
+const createResponse = (socket, requestHeaders) => {
+   return {
+      headers: {
+         type: 'text/plain',
+         http: 'HTTP/1.1 200 OK',
+      },
+      getHeaders() {
+         return [this.headers.http, `Content-Type: ${this.headers.type}`]
+      },
+      setHeader(key, value) {
+         this.headers[key] = value
+      },
+      status(status) {
+         this.setHeader(
+            'http',
+            `HTTP/1.1 ${responseStatusMapper[status] || status}`
+         )
+         return this
+      },
+      setType (type) {
+         this.setHeader('type', type)
+         return this
+      },
+      async send(data = '') {
+         let body = `${data?.toString?.() || data}`
+         const headers = this.getHeaders()
+
+         if (requestHeaders?.['Accept-Encoding']?.includes('gzip')) {
+            body = await compress(data)
             headers.push('Content-Encoding: gzip')
          }
 
          headers.push(`Content-Length: ${body.length}`)
-         const payload = headers.join(CRLF) + CRLF + CRLF 
+         const head = headers.join(CRLF) + CRLF + CRLF
 
-         await send(socket, payload) 
-         return send(socket, body)
+         await send(socket, head)
+         await send(socket, body)
       },
    }
 }
@@ -61,7 +68,7 @@ const handel = (socket, response, headers, body, params, cp) => {
 exports.registerListener = (socket, data) => {
    const { headers, body } = parseRequest(data.toString())
    const hit = headers.requestUri
-   const response = createResponse(socket)
+   const response = createResponse(socket, headers)
 
    let lock = false
 
@@ -82,7 +89,7 @@ exports.registerListener = (socket, data) => {
          const target = targetParts[i]
          const got = gotParts[i]
 
-         const dynamicStr = parseIfDynamic(target)
+         const dynamicStr = parseDynamicField(target)
          if (dynamicStr) dynamicParts[dynamicStr] = got
          else if (got === target) continue
          else return (lock = false)
