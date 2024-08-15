@@ -30,6 +30,8 @@ const response = {
 const parseRequestHeaders = (headers = '') => {
    const parts = headers.split(CRLF)
 
+   console.log(parts)
+
    const requestLine = parts?.[0]
    if (!requestLine) throw new Error('Empty request headers')
 
@@ -50,8 +52,8 @@ const parseRequestHeaders = (headers = '') => {
    const host = parts?.[1]
    if (!host) throw new Error('Unknown host')
 
-   const accepts = parts?.[2]
-   if (!accepts) throw new Error('Unknown Accepts param')
+   // const accepts = parts?.[2]
+   // if (!accepts) throw new Error('Unknown Accepts param')
 
    const userAgent = parts?.[3]?.split(':')?.slice(1)?.join('')?.trim()
    if (!userAgent) throw new Error('Unknown user agent')
@@ -62,7 +64,7 @@ const parseRequestHeaders = (headers = '') => {
       httpVersion,
       host,
       userAgent,
-      accepts,
+      // accepts,
    }
 }
 
