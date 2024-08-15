@@ -8,8 +8,24 @@ const CRLF = '\r\n'
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 const httpVersions = ['HTTP/1.1', 'HTTP/2']
 
-const OK = () => 'HTTP/1.1 200 OK' + CRLF + CRLF
-const E404 = () => 'HTTP/1.1 404 Not Found' + CRLF + CRLF
+const response = {
+   OK: () => 'HTTP/1.1 200 OK' + CRLF + CRLF,
+   E404: () => 'HTTP/1.1 404 Not Found' + CRLF + CRLF,
+   send: (data = '') => {
+      const body = `${data?.toString?.() || data}`
+      const headers = [
+         'HTTP/1.1 200 OK',
+         'Content-Type: text/plain',
+         `Content-Length: ${body.length}`,
+      ]
+
+      const payload = headers.join(CRLF) + CRLF + CRLF + body
+
+      console.log(JSON.stringify(payload))
+
+      return payload
+   },
+}
 
 const parseRequestHeaders = (headers = '') => {
    const parts = headers.split(CRLF)
@@ -31,14 +47,14 @@ const parseRequestHeaders = (headers = '') => {
    if (!httpVersion || !httpVersions.includes(httpVersion))
       throw new Error('Unsupported http version: ' + httpVersion)
 
-   const host = requestLine?.[1]
+   const host = parts?.[1]
    if (!host) throw new Error('Unknown host')
 
-   const userAgent = requestLine?.[2]
-   if (!userAgent) throw new Error('Unknown user agent')
-
-   const accepts = requestLine?.[3]
+   const accepts = parts?.[2]
    if (!accepts) throw new Error('Unknown Accepts param')
+
+   const userAgent = parts?.[3]?.split(':')?.slice(1)?.join('')?.trim()
+   if (!userAgent) throw new Error('Unknown user agent')
 
    return {
       method,
@@ -53,7 +69,7 @@ const parseRequestHeaders = (headers = '') => {
 const send = (socket, data) =>
    new Promise((resolve) => {
       socket.write(data, () => {
-         socket.end()
+         //  socket.end()
          return resolve()
       })
    })
@@ -68,9 +84,12 @@ const server = net.createServer((socket) => {
       const headers = parseRequestHeaders(data.toString())
 
       if (headers.requestUri === '/') {
-         await send(socket, OK())
-      } else {
-         await send(socket, E404())
+         await send(socket, response.OK())
+      } else if (headers.requestUri.startsWith('/echo')) {
+         const [_, __, ...args] = headers.requestUri.split('/') // get echo data
+         await send(socket, response.send(args?.join?.()))
+      }  else {
+         await send(socket, response.E404())
       }
    })
    socket.on('close', () => {
