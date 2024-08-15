@@ -20,7 +20,7 @@ const createResponse = (socket) => {
    return {
       OK: () => send(socket, 'HTTP/1.1 200 OK' + CRLF + CRLF),
       E404: () => send(socket, 'HTTP/1.1 404 Not Found' + CRLF + CRLF),
-      send: (data = '', type, status) => {
+      send: (data = '', type, status, compress = false) => {
          const body = `${data?.toString?.() || data}`
          const headers = [
             `HTTP/1.1 ${
@@ -36,6 +36,7 @@ const createResponse = (socket) => {
             `Content-Length: ${body.length}`,
          ]
 
+         if(compress) headers.push('Content-Encoding: gzip')
          const payload = headers.join(CRLF) + CRLF + CRLF + body
 
          return send(socket, payload)

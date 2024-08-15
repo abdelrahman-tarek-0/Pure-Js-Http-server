@@ -18,7 +18,7 @@ const server = net.createServer((socket) => {
       })
 
       listen('GET', '/echo/{data}', async (req, res) => {
-         await res.send(req?.params?.data)
+         await res.send(req?.params?.data, '', '', req?.headers?.['Accept-Encoding'] === 'gzip')
       })
 
       listen('GET', '/user-agent', async (req, res) => {
