@@ -27,6 +27,13 @@ const response = {
    },
 }
 
+const partParser = (part = '') => {
+   let [key, ...value] = part?.split?.(':')
+   value = value?.join?.('')?.trim()
+
+   return { key, value }
+}
+
 const parseRequestHeaders = (headers = '') => {
    const parts = headers.split(CRLF)
 
@@ -49,18 +56,21 @@ const parseRequestHeaders = (headers = '') => {
    if (!httpVersion || !httpVersions.includes(httpVersion))
       throw new Error('Unsupported http version: ' + httpVersion)
 
-   const host = parts?.[1]
-   // const accepts = parts?.[2]
-   const userAgent = parts?.[2]?.split(':')?.slice(1)?.join('')?.trim()
 
-   return {
+   const parsedHeaders = {
       method,
       requestUri,
       httpVersion,
-      host,
-      userAgent,
-      // accepts,
    }
+   parts?.slice(1).forEach((part) => {
+      const { key, value } = partParser(part)
+
+      if (key) {
+         parsedHeaders[key] = value
+      }
+   })
+
+   return parsedHeaders
 }
 
 const send = (socket, data) =>
@@ -77,8 +87,9 @@ const server = net.createServer((socket) => {
    //    socket.write(OK())
    socket.on('data', async (data) => {
       console.log('DATA', JSON.stringify(data.toString()))
-
       const headers = parseRequestHeaders(data.toString())
+
+      console.log(headers)
 
       if (headers.requestUri === '/') {
          await send(socket, response.OK())
@@ -86,7 +97,7 @@ const server = net.createServer((socket) => {
          const [_, __, ...args] = headers.requestUri.split('/') // get echo data
          await send(socket, response.send(args?.join?.()))
       } else if (headers.requestUri.startsWith('/user-agent')) {
-         await send(socket, response.send(headers.userAgent))
+         await send(socket, response.send(headers['User-Agent']))
       } else {
          await send(socket, response.E404())
       }
@@ -94,6 +105,10 @@ const server = net.createServer((socket) => {
    socket.on('close', () => {
       console.log('connection closed')
       socket.end()
+   })
+
+   socket.on('error', (e)=>{
+      console.log(e.message)
    })
 })
 
