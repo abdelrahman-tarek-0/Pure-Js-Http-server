@@ -50,13 +50,8 @@ const parseRequestHeaders = (headers = '') => {
       throw new Error('Unsupported http version: ' + httpVersion)
 
    const host = parts?.[1]
-   if (!host) throw new Error('Unknown host')
-
-   // const accepts = parts?.[2]
-   // if (!accepts) throw new Error('Unknown Accepts param')
-
+   const accepts = parts?.[2]
    const userAgent = parts?.[3]?.split(':')?.slice(1)?.join('')?.trim()
-   if (!userAgent) throw new Error('Unknown user agent')
 
    return {
       method,
@@ -64,7 +59,7 @@ const parseRequestHeaders = (headers = '') => {
       httpVersion,
       host,
       userAgent,
-      // accepts,
+      accepts,
    }
 }
 
