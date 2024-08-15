@@ -1,66 +1,49 @@
-const net = require('net')
 const fs = require('fs/promises')
 const path = require('path')
 const { checkFileExist } = require('./utils')
 const { parseArgv } = require('./parsers')
-const { registerListener } = require('./listener')
+
+const Server = require('./server')
+
+const server = new Server()
 
 const uploadDirectory = path.resolve(parseArgv('--directory') ?? '.')
 
-// Uncomment this to pass the first stage
-const server = net.createServer((socket) => {
-   socket.on('data', async (data) => {
-      const listen = registerListener(socket, data)
-
-      listen('GET', '/', async (req, res) => {
-         await res.send()
-      })
-
-      listen('GET', '/echo/{data}', async (req, res) => {
-         await res.send(req?.params?.data)
-      })
-
-      listen('GET', '/user-agent', async (req, res) => {
-         await res.send(req?.headers?.['User-Agent'])
-      })
-
-      listen('GET', '/files/{fileName}', async (req, res) => {
-         const fileLocation = path.join(
-            uploadDirectory,
-            req?.params?.fileName || '.'
-         )
-
-         if (await checkFileExist(fileLocation))
-            return await res
-               .setType('application/octet-stream')
-               .send(await fs.readFile(fileLocation, 'utf8'))
-
-         await res.status(404).send()
-      })
-
-      listen('POST', '/files/{fileName}', async (req, res) => {
-         // console.log(req.params.fileName, req.body)
-         await fs.writeFile(
-            path.join(uploadDirectory, req?.params?.fileName || '.'),
-            req.body
-         )
-         await res.status(201).send()
-      })
-
-      listen('GET', '/*', async (req, res) => {
-         await res.status(404).send()
-      })
-   })
-
-   socket.on('close', () => {
-      socket.end()
-   })
-
-   socket.on('error', (e) => {
-      console.log(e.message)
-   })
+server.on('GET', '/', async (req, res) => {
+   await res.send()
 })
 
-server.listen(4221, 'localhost', () => {
+server.on('GET', '/echo/{data}', async (req, res) => {
+   await res.send(req?.params?.data)
+})
+
+server.on('GET', '/user-agent', async (req, res) => {
+   await res.send(req?.headers?.['User-Agent'])
+})
+
+server.on('GET', '/files/{fileName}', async (req, res) => {
+   const fileLocation = path.join(uploadDirectory, req?.params?.fileName || '.')
+
+   if (await checkFileExist(fileLocation))
+      return await res
+         .setType('application/octet-stream')
+         .send(await fs.readFile(fileLocation, 'utf8'))
+
+   await res.status(404).send()
+})
+
+server.on('POST', '/files/{fileName}', async (req, res) => {
+   await fs.writeFile(
+      path.join(uploadDirectory, req?.params?.fileName || '.'),
+      req.body
+   )
+   await res.status(201).send()
+})
+
+server.on('GET', '/*', async (req, res) => {
+   await res.status(404).send()
+})
+
+server.listen(4221, () => {
    console.log('[SERVER]', 'running', 'http://localhost:4221')
 })
