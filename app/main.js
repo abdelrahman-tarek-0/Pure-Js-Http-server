@@ -88,7 +88,9 @@ const server = net.createServer((socket) => {
       } else if (headers.requestUri.startsWith('/echo')) {
          const [_, __, ...args] = headers.requestUri.split('/') // get echo data
          await send(socket, response.send(args?.join?.()))
-      }  else {
+      } else if (headers.requestUri.startsWith('/user-agent')) {
+         await send(socket, response.send(headers.userAgent))
+      } else {
          await send(socket, response.E404())
       }
    })
